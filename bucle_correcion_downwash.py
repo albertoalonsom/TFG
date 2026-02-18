@@ -34,7 +34,7 @@ span = 5 # span total de la vela [m]
 rho = 1.225  # densidad del aire [kg/m^3]
 V = 5.14444      # velocidad [m/s]
 
-valor_angulo_ataque = 5 # VALORES EN GRADOS [º]
+valor_angulo_ataque = 15 # VALORES EN GRADOS [º]
 valor_angulo_flap = 0   # VALRES EN GRADOS [º]
 
 
@@ -153,7 +153,7 @@ valor_angulo_ataque *= deg2rad
 # alpha0tip *= deg2rad
 
 
-n = 20 # número de estaciones dejar mejor un un numero impar 
+n = 21 # número de estaciones impar mejor, no poner mas de 50 estaciones y en caso de fallo bajar el numero 
 # Inicialización de vectores para resolver
 angle = np.zeros(n)
 y = np.zeros(n)
@@ -232,7 +232,7 @@ alpha_inicial_rad = np.copy(alpha_geom_rad)
 alpha_eff_rad_final, info_dict, ier, mesg = fsolve(calcular_error_aerodinamico, alpha_inicial_rad, full_output=True)
 
 if ier == 1:
-    print("¡Convergencia NLLT alcanzada con éxito por SciPy!")
+    print("Convergencia NLLT alcanzada con EXITOOOO por SciPy")
 else:
     print("Aviso del solver:", mesg)
 
@@ -253,7 +253,7 @@ cl_2d = np.nan_to_num(interpolador_cl(np.clip(alpha_eff_deg, LIMITE_MIN_DEG, LIM
 RHS_final = (distribucion_cuerda / (4 * span)) * cl_2d
 A_1D = np.linalg.solve(Matriz_Seno, RHS_final)
 
-# Creamos las variables exactas que usas en el resto de tu código
+# Cre0 las variables exactas que us0 en el resto del código
 alpha_w_nuevo = alpha_geom_rad - alpha_eff_rad_final
 A = A_1D.reshape((n, 1))
 
@@ -348,7 +348,7 @@ cdi = cl * alpha_w
 # print(f"CL Total = {CL:.5f}")
 # print(f"CD Inducido Total = {CD:.5f}")
 # print("vector alphadownwash (rad):", alpha_w)
-# print("vector cl local:", cl)
+print("vector cl local:", cl)
 
 # ==============================================================================
 # OBTENCIÓN DEL CD VISCOSO FINAL (El Cl ya convergió en el bucle NLLT)
@@ -365,7 +365,7 @@ resultados_cdxfoil = np.nan_to_num(raw_cd, nan=0.0)
 resultados_clxfoil = cl_2d 
 
 # print("\nVector de CD viscoso (XFOIL):")
-# print(resultados_cdxfoil)
+print(resultados_clxfoil)
 
 #========================================================
 # INTEGRACION DEL LIFT Y DRAG
