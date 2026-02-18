@@ -19,8 +19,13 @@ CARPETA_DATOS = r"C:\Users\aamal\OneDrive - Universidad Politécnica de Madrid\E
 # Define aquí los archivos que quieres procesar y sus valores asociados:
 # Formato: "Nombre_del_Archivo.txt": [Valor_Reynolds, Valor_Angulo]
 CONFIGURACION_ARCHIVOS = {
-    "NACA 0020_Re0.462.txt": [404000, 5.0],
-    "NACA 0020_Re0.578.txt": [600000, 7.5],
+    "NACA 0020_Re0.462_flap_0.txt": [404000, 0],
+    "NACA 0020_Re0.520_flap_10.txt": [520000, 10],
+    "NACA 0020_Re0.520_flap_5.txt": [520000, 5],
+    "NACA 0020_Re0.520_flap_15.txt": [520000, 15],
+    "NACA 0020_Re0.520_flap_20.txt": [520000, 20],
+    "NACA 0020_Re0.520_flap_25.txt": [520000, 25],
+    "NACA 0020_Re0.520_flap_30.txt": [520000, 30],
     # Añade más archivos aquí siguiendo el mismo formato
 }
 #============================================================================================
@@ -30,10 +35,10 @@ cuerda_en_base = 2 # cuerda en la base de la vela [m]
 cuerda_en_punta = 1.4 # cuerda en la punta de la vela [m]
 span = 5 # span total de la vela [m]
 rho = 1.225  # densidad del aire [kg/m^3]
-V = 7       # velocidad [m/s]
+V = 5.14444      # velocidad [m/s]
 
-valor_angulo_ataque = 7 # VALORES EN GRADOS [º]
-valor_angulo_flap = 5    # VALRES EN GRADOS [º]
+valor_angulo_ataque = 15 # VALORES EN GRADOS [º]
+valor_angulo_flap = 0   # VALRES EN GRADOS [º]
 
 valor_angulo_ataque2_calculo_pendiente = valor_angulo_ataque - 0.5 # VALOR DEL ANGULO DE ATAQUE 2 PARA CALCULO DE LA PENDIENTE
 
@@ -45,7 +50,7 @@ semilargo= 7
 
 # de momento solo funciona con vela eliptica poner 1
 modelo_seleccionado = 1 #poner 1 para vela con distribucion de un cuartode elipse y poner 2 para trapezoidal
-
+opcion_usuario = 1
 
 # twistroot = 0 # valor Root twist angle in degrees    en nuestros casos simpre 0
 # twisttip = 0 # valor tip twist angle in degrees      en nuestros casos simpre 0
@@ -164,7 +169,7 @@ angulo_para_cl_cero *= deg2rad
 # alpha0tip *= deg2rad
 
 
-n = 20 # número de estaciones dejar mejor un un numero impar 
+n = 5 # número de estaciones dejar mejor un un numero impar 
 
 # Inicialización de vectores para resolver 
 angle = np.zeros(n)
@@ -179,9 +184,23 @@ ecuacionLLT_2 = np.zeros((n, n))
 for i in range(n):
     angle[i] = (i+1) * np.pi / (n+1) #va desde 0 hasta pi sin incluir 0 y pi ya que conduce a una matriz singular q no se puede resolver 
     y[i] = span * 0.5 * np.cos(angle[i]) # posicion de la envergadura de la vela
+
     # aqui podria meter un if y dependiendo de lo que el usuario elija tener distinta distribucion de cuerda para no siempre ser la eliptica
-    #c[i] = semiancho * (np.sqrt(1-((y[i])/semilargo)**2))                 # para hacerla simetrica y validar con xflr5
-    distribucion_cuerda[i] = semiancho * (np.sqrt(1-((y[i]+2.5)/semilargo)**2))              # debido al distribucion eliptica del ala y desplazada por situar el eje el en medio de la vela
+    # Uso de match-case para seleccionar la distribución de la cuerda
+    match opcion_usuario:
+        case 0:
+            # Para hacerla simétrica y validar con xflr5
+            distribucion_cuerda[i] = semiancho * (np.sqrt(1 - ((y[i]) / semilargo)**2))
+            
+        case 1:
+            # Debido a la distribución elíptica del ala y desplazada por situar el eje en medio de la vela
+            distribucion_cuerda[i] = semiancho * (np.sqrt(1 - ((y[i] + 2.5) / semilargo)**2))
+            
+        case 2:
+            # Ecuación de una recta
+            distribucion_cuerda[i] = ((cuerda_en_punta - cuerda_en_base) / span) * (y[i] + span/2) + cuerda_en_base
+            
+
     pendiente2D[i] = pendiente        # pendiente curva 2D
     b[i] = cl_interpolado1     # este valor no deja de ser la pendiente multiplicada por (angulo de ataque - angulo a cl=0)
 
@@ -301,7 +320,7 @@ flaps_grados = np.full_like(punto_evaluado, valor_angulo_flap)
 raw_cl = interpolador_cl(punto_evaluado, flaps_grados)
 raw_cd = interpolador_cd(punto_evaluado, flaps_grados)
 
-# Limpieza de NaNs (Equivalente a un if
+# Limpieza de NaNs Equivalente a un if
 # np.nan_to_num convierte los NaN a 0.0 automáticamente
 resultados_clxfoil = np.nan_to_num(raw_cl, nan=0.0)
 resultados_cdxfoil = np.nan_to_num(raw_cd, nan=0.0)
