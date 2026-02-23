@@ -34,7 +34,7 @@ span = 5 # span total de la vela [m]
 rho = 1.225  # densidad del aire [kg/m^3]
 V = 5.14444      # velocidad [m/s]
 
-valor_angulo_ataque = 15 # VALORES EN GRADOS [º]
+valor_angulo_ataque = 8 # VALORES EN GRADOS [º]
 valor_angulo_flap = 0   # VALRES EN GRADOS [º]
 
 
@@ -70,7 +70,8 @@ def procesar_polar(ruta_archivo, re_val, ang_val):
             df["alpha"].to_numpy(),     # Columna Angulo de ataque 
             np.full(len(df), ang_val),  # Columna Angulo de flap
             df["CL"].to_numpy(),        # Columna CL
-            df["CD"].to_numpy()         # Columna CD
+            df["CD"].to_numpy(),        # Columna CD
+            df["Cm"].to_numpy()         # Columna Cm
         ))
         
         return matriz_np.tolist()
@@ -117,12 +118,16 @@ if len(matriz_DATOS2D) > 0:
     valores_cl = datos_array[:, 3]
     #para extraer los "Valores" (Output): CD
     valores_cd = datos_array[:, 4]
+    #para extraer los "Valores" (Output): Cm
+    valores_cm = datos_array[:, 5]
+
 
     # creacion el interpolador
     # rescale=True creo que es necesario aquí porque Alpha (ej. -5 a 15) y Flap (ej. 0 a 40) tienen escalas parecidas,
     # pero si usaro el Reynolds, las escalas serían muy distintas
     interpolador_cl = LinearNDInterpolator(puntos_entrada, valores_cl, rescale=True)
     interpolador_cd = LinearNDInterpolator(puntos_entrada, valores_cd, rescale=True)
+    interpolador_cm = LinearNDInterpolator(puntos_entrada, valores_cm, rescale=True)
    
     # ejemplo para verificar si esta correcto
     # si quiero predecir CL para: Alpha = 5.9 grados, Flap = 5.6 grados
@@ -153,7 +158,7 @@ valor_angulo_ataque *= deg2rad
 # alpha0tip *= deg2rad
 
 
-n = 21 # número de estaciones impar mejor, no poner mas de 50 estaciones y en caso de fallo bajar el numero 
+n = 21 # número de estaciones impar mejor, no poner mas de 40 estaciones y en caso de fallo bajar el numero 
 # Inicialización de vectores para resolver
 angle = np.zeros(n)
 y = np.zeros(n)
@@ -246,10 +251,9 @@ print(f"Error máximo de fsolve: {error_maximo:.8e} radianes")
 # RECONSTRUCCIÓN FINAL DE VARIABLES PARA EL RESTO DEL CÓDIGO
 # ==============================================================================
 # Ahora que ya sabemos el ángulo efectivo perfecto, hacemos el cálculo una última vez
-# para guardar los coeficientes A_1D y el cl_2d y pasárselos a tus integrales
+# para guardar los coeficientes A_1D y el cl_2d y pasárselos a las integrales
 alpha_eff_deg = np.rad2deg(alpha_eff_rad_final)
 cl_2d = np.nan_to_num(interpolador_cl(np.clip(alpha_eff_deg, LIMITE_MIN_DEG, LIMITE_MAX_DEG), np.full(n, valor_angulo_flap)), nan=0.0)
-
 RHS_final = (distribucion_cuerda / (4 * span)) * cl_2d
 A_1D = np.linalg.solve(Matriz_Seno, RHS_final)
 
@@ -324,7 +328,7 @@ CD = 0
 for i in range(n):
     CD += np.pi * AR * (termino * i + 1) * A[i, 0] ** 2
 
-# Reciclamos el downwash que ya calculó el bucle iterativo NLLT
+# Reciclamos el downwash que ya calcule en el bucle iterativo NLLT
 alpha_w = alpha_w_nuevo 
 
 # Cálculo de distribución de carga (gamma) y cl local
@@ -355,7 +359,7 @@ print("vector cl local:", cl)
 # ==============================================================================
 
 # Usamos directamente el ángulo efectivo en grados que salió del bucle 'while'
-flaps_grados = np.full_like(alpha_eff_deg, valor_angulo_flap)
+flaps_grados = np.full_like(alpha_eff_deg, valor_angulo_flap) # creo un vector con todo valor angulo flap pero de la misma dimension que alpha_eff_deg
 
 # Interpolar SOLO el Cd, porque el Cl ya obligamos a que fuera igual en el bucle
 raw_cd = interpolador_cd(alpha_eff_deg, flaps_grados)
@@ -405,8 +409,17 @@ error = (cl - resultados_clxfoil)/resultados_clxfoil
 print("error")
 print(error)
 
+# calculo de momentosssssssssssssssssssssssssssssssssssssssssssssssss
+
+Cm_vector = interpolador_cm(alpha_eff_deg, valor_angulo_flap)
+integrando_vector = 0.5 * rho * (V**2) * (distribucion_cuerda**2) * Cm_vector
+momento_cabeceo = simpson(integrando_vector, x=y)
+
+print(f"Momento 3D: {momento_cabeceo:.2f} Nm")
+
+
 # #graficas 
-plt.plot(y, cl)
+plt.plot(y, cdi)
 plt.xlabel("span")
 plt.ylabel("cl")
 plt.title("titulo")

@@ -33,11 +33,11 @@ CONFIGURACION_ARCHIVOS = {
 #============================================================================================
 cuerda_en_base = 2 # cuerda en la base de la vela [m]
 cuerda_en_punta = 1.4 # cuerda en la punta de la vela [m]
-span = 5 # span total de la vela [m]
+span = 6.5 # span total de la vela [m]
 rho = 1.225  # densidad del aire [kg/m^3]
 V = 5.14444      # velocidad [m/s]
 
-valor_angulo_ataque = 15 # VALORES EN GRADOS [º]
+valor_angulo_ataque = 3 # VALORES EN GRADOS [º]
 valor_angulo_flap = 0   # VALRES EN GRADOS [º]
 
 valor_angulo_ataque2_calculo_pendiente = valor_angulo_ataque - 0.5 # VALOR DEL ANGULO DE ATAQUE 2 PARA CALCULO DE LA PENDIENTE
@@ -49,8 +49,8 @@ semiancho = 2
 semilargo= 7
 
 # de momento solo funciona con vela eliptica poner 1
-modelo_seleccionado = 1 #poner 1 para vela con distribucion de un cuartode elipse y poner 2 para trapezoidal
-opcion_usuario = 1
+modelo_seleccionado = 2 #poner 1 para vela con distribucion de un cuartode elipse y poner 2 para trapezoidal
+opcion_usuario = 2
 
 # twistroot = 0 # valor Root twist angle in degrees    en nuestros casos simpre 0
 # twisttip = 0 # valor tip twist angle in degrees      en nuestros casos simpre 0
@@ -169,7 +169,7 @@ angulo_para_cl_cero *= deg2rad
 # alpha0tip *= deg2rad
 
 
-n = 5 # número de estaciones dejar mejor un un numero impar 
+n = 21 # número de estaciones dejar mejor un un numero impar 
 
 # Inicialización de vectores para resolver 
 angle = np.zeros(n)
@@ -378,7 +378,7 @@ print("error")
 print(error)
 
 # #graficas 
-plt.plot(y, cl)
+plt.plot(y, alpha_w)
 plt.xlabel("span")
 plt.ylabel("cl")
 plt.title("titulo")
