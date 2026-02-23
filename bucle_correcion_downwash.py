@@ -409,13 +409,30 @@ error = (cl - resultados_clxfoil)/resultados_clxfoil
 print("error")
 print(error)
 
-# calculo de momentosssssssssssssssssssssssssssssssssssssssssssssssss
-
+# calculo de momento cabeceo el que intenta retorcer el mastil,
+# digamos que esta aplicado el la base del mastil 
 Cm_vector = interpolador_cm(alpha_eff_deg, valor_angulo_flap)
-integrando_vector = 0.5 * rho * (V**2) * (distribucion_cuerda**2) * Cm_vector
-momento_cabeceo = simpson(integrando_vector, x=y)
+# 1. Definir la forma del borde de ataque 
+#Opción A: Borde de ataque recto
+# 2. Calcular dónde está el Centro Aerodinámico real en el espacio 3D
+centro_aerodinamico_teorico = 0.25 * distribucion_cuerda
+# 3. Definir dónde está tu mástil físico (ej. a 0.5m del borde de ataque)
+posicion_mastil = np.full_like(centro_aerodinamico_teorico, 0.425) # respecto del borde de ataque
+# 4. Calcular el brazo de palanca punto por punto
+# Si es positivo, la sustentación intenta girar la nariz hacia barlovento (Pitch-Up)
+brazo_palanca = posicion_mastil - centro_aerodinamico_teorico
+# 5. Calcular los dos integrandos (Momento del perfil + Torque de la sustentación)
+#   a) El momento puro del Cm
+integrando_Cm = 0.5 * rho * (V**2) * (distribucion_cuerda**2) * Cm_vector
+#   b) El momento de la sustentación (L * distancia)
+integrando_Sustentacion = integrando_cl * brazo_palanca
+# 6. Sumar e integrar
+integrando_total = integrando_Cm + integrando_Sustentacion
+momento_total_mastil = simpson(integrando_total, x=y)
 
-print(f"Momento 3D: {momento_cabeceo:.2f} Nm")
+print(f"Momento aerodinámico puro: {simpson(integrando_Cm, x=y):.2f} Nm")
+print(f"Momento por sustentación: {simpson(integrando_Sustentacion, x=y):.2f} Nm")
+print(f"Momento TOTAL que sufre el mastil: {momento_total_mastil:.2f} Nm")
 
 
 # #graficas 
