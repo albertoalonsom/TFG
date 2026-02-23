@@ -43,8 +43,8 @@ semiancho = 2
 semilargo= 7
 
 # de momento solo funciona con vela eliptica poner 1
-modelo_seleccionado = 1 #poner 1 para vela con distribucion de un cuartode elipse y poner 2 para trapezoidal
-opcion_usuario = 1
+modelo_seleccionado = 2 #poner 1 para vela con distribucion de un cuartode elipse y poner 2 para trapezoidal
+opcion_usuario = 2
 
 # twistroot = 0 # valor Root twist angle in degrees    en nuestros casos simpre 0
 # twisttip = 0 # valor tip twist angle in degrees      en nuestros casos simpre 0
@@ -409,30 +409,42 @@ error = (cl - resultados_clxfoil)/resultados_clxfoil
 print("error")
 print(error)
 
-# calculo de momento cabeceo el que intenta retorcer el mastil,
-# digamos que esta aplicado el la base del mastil 
-Cm_vector = interpolador_cm(alpha_eff_deg, valor_angulo_flap)
-# 1. Definir la forma del borde de ataque 
-#Opción A: Borde de ataque recto
-# 2. Calcular dónde está el Centro Aerodinámico real en el espacio 3D
-centro_aerodinamico_teorico = 0.25 * distribucion_cuerda
-# 3. Definir dónde está tu mástil físico (ej. a 0.5m del borde de ataque)
-posicion_mastil = np.full_like(centro_aerodinamico_teorico, 0.425) # respecto del borde de ataque
-# 4. Calcular el brazo de palanca punto por punto
-# Si es positivo, la sustentación intenta girar la nariz hacia barlovento (Pitch-Up)
-brazo_palanca = posicion_mastil - centro_aerodinamico_teorico
-# 5. Calcular los dos integrandos (Momento del perfil + Torque de la sustentación)
-#   a) El momento puro del Cm
-integrando_Cm = 0.5 * rho * (V**2) * (distribucion_cuerda**2) * Cm_vector
-#   b) El momento de la sustentación (L * distancia)
-integrando_Sustentacion = integrando_cl * brazo_palanca
-# 6. Sumar e integrar
-integrando_total = integrando_Cm + integrando_Sustentacion
-momento_total_mastil = simpson(integrando_total, x=y)
+# ====================================================================
+# CÁLCULO DE MOMENTOS (Integrando sobre theta para mantener el Jacobiano)
+# ====================================================================
 
-print(f"Momento aerodinámico puro: {simpson(integrando_Cm, x=y):.2f} Nm")
-print(f"Momento por sustentación: {simpson(integrando_Sustentacion, x=y):.2f} Nm")
-print(f"Momento TOTAL que sufre el mastil: {momento_total_mastil:.2f} Nm")
+Cm_vector = interpolador_cm(alpha_eff_deg, valor_angulo_flap)
+
+# 1. Centro Aerodinámico y Posición del mástil
+centro_aerodinamico_teorico = 0.25 * distribucion_cuerda
+posicion_mastil = np.full_like(centro_aerodinamico_teorico, 0.5) 
+
+# 2. Brazo de palanca (positivo = el viento intenta levantar la nariz)
+brazo_palanca = posicion_mastil - centro_aerodinamico_teorico
+
+# 3. Integrandos
+#   a) El momento puro del Cm (¡OJO! Hay que añadirle el Jacobiano de theta: (span/2)*sin(theta))
+integrando_Cm = 0.5 * rho * (V**2) * (distribucion_cuerda**2) * Cm_vector * (span/2) * np.sin(theta)
+
+#   b) El momento de la sustentación (L * distancia)
+#      (integrando_cl ya lleva incorporado su propio Jacobiano arriba, así que solo multiplicamos)
+integrando_Sustentacion = integrando_cl * brazo_palanca
+
+# 4. Sumar
+integrando_total = integrando_Cm + integrando_Sustentacion
+
+# 5. Integrar utilizando THETA, no Y
+# Como theta va de 0 a pi (ascendente), Simpson calculará el área con el signo matemáticamente perfecto
+momento_Cm_puro = simpson(integrando_Cm, x=theta)
+momento_Sust_puro = simpson(integrando_Sustentacion, x=theta)
+momento_total_mastil = simpson(integrando_total, x=theta)
+
+print(f"1. Momento aerodinámico puro (Cm): {momento_Cm_puro:.2f} Nm")
+print(f"2. Momento por brazo de palanca (L): {momento_Sust_puro:.2f} Nm")
+print(f"3. Momento TOTAL en el mástil:     {momento_total_mastil:.2f} Nm")
+# Para comprobar que el indice [0] que es LA PUNTA, y el [-1] que es LA BASE
+print(f"Cuerda en la PUNTA (y={y[0]:.2f}m): {distribucion_cuerda[0]:.2f}m | Brazo: {brazo_palanca[0]:.3f}m")
+print(f"Cuerda en la BASE (y={y[-1]:.2f}m): {distribucion_cuerda[-1]:.2f}m | Brazo: {brazo_palanca[-1]:.3f}m")
 
 
 # #graficas 
@@ -441,4 +453,38 @@ plt.xlabel("span")
 plt.ylabel("cl")
 plt.title("titulo")
 plt.grid(True)
+plt.show()
+
+# ====================================================================
+# GRÁFICA DE DISTRIBUCIÓN DE MOMENTOS A LO LARGO DEL MÁSTIL
+# ====================================================================
+
+# hay que quitar  el jacobiano de integracion para obtener la distribución real (Nm/m)
+jacobiano = (span/2) * np.sin(theta)
+dM_dy_Cm = integrando_Cm / jacobiano
+dM_dy_Sust = integrando_Sustentacion / jacobiano
+dM_dy_Total = integrando_total / jacobiano
+
+
+plt.figure(figsize=(10, 6))
+
+# usamos 'y' como eje X (irá de -2.5 base a 2.5 punta)
+plt.plot(y, dM_dy_Cm, 'b--', linewidth=2, label='Momento Puro del Perfil (Cm)')
+plt.plot(y, dM_dy_Sust, 'r--', linewidth=2, label='Momento por Sustentación (Brazo)')
+plt.plot(y, dM_dy_Total, 'k-', linewidth=3, label='Momento TOTAL Neto')
+
+# detalles estéticos para mejor visualizacion
+plt.title(f'Distribución del Momento de Torsión en el Mástil (AOA = {np.rad2deg(valor_angulo_ataque):.0f}º)', fontsize=14, fontweight='bold')
+plt.xlabel('Posición en la envergadura (y) [m]  (-2.5=Base, 2.5=Punta)', fontsize=12)
+plt.ylabel('Torque Local (dM/dy) [Nm/m]', fontsize=12)
+
+# linea del cero para ver fácilmente cuándo el momento cambia de dirección
+plt.axhline(0, color='gray', linestyle='-', linewidth=1) 
+plt.axvline(0, color='gray', linestyle=':', linewidth=1) # Centro de la vela
+
+plt.grid(True, linestyle=':', alpha=0.7)
+plt.legend(fontsize=11, loc='best')
+plt.tight_layout() # Ajusta los márgenes automáticamente
+
+
 plt.show()
