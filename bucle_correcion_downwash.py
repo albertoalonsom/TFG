@@ -409,66 +409,48 @@ error = (cl - resultados_clxfoil)/resultados_clxfoil
 print("error")
 print(error)
 
-# ====================================================================
-# CÁLCULO DE MOMENTOS (Fuerza Normal con Lift y Drag) # todo esto es para un vela con el borde de ataque recto 
-# ====================================================================
+# ================
+# CALCULO DE MOMENTOS ESTRUCTURALES: TORSION, ESCORA Y CABECEO
+# basado en la integracion 3D del Producto Vectorial
+# ================================================
 
-# MOMENTO MZ DE TORSION DEL MASTIL 
-# Obtenemos el Cm interpolado para cada seccion
-Cm_vector = interpolador_cm(alpha_eff_deg, valor_angulo_flap)
-# Centro Aerodinamico y Posición del mastil
-centro_aerodinamico_teorico = 0.25 * distribucion_cuerda
-posicion_mastil = np.full_like(centro_aerodinamico_teorico, 0.5) 
-# Brazo de palanca (positivo = el viento intenta levantar la nariz)
-brazo_palanca = posicion_mastil - centro_aerodinamico_teorico
-# Integrandos Aerodinamicos
-#   a) El momento puro del Cm (OJOOO que luego me da error si no, Requiere el Jacobiano de theta)
-integrando_Cm = 0.5 * rho * (V**2) * (distribucion_cuerda**2) * Cm_vector * (span/2) * np.sin(theta)
-#   b) Fuerza Normal Estricta (Proyeccion geometrica de Lift y Drag)
+#FUERZAS LOCALES (proyeccion estricta de lift y drag)
 alpha_eff_rad = np.deg2rad(alpha_eff_deg)
+# a) Fuerza normal (perpendicular a la cuerda)
 integrando_Normal = integrando_cl * np.cos(alpha_eff_rad) + integrando_cd * np.sin(alpha_eff_rad)
-#   c) El momento por brazo de palanca (Fuerza Normal * distancia al mastil)
-integrando_Fuerza_Palanca = integrando_Normal * brazo_palanca
-# Suma Total de Integrandos
-integrando_total = integrando_Cm + integrando_Fuerza_Palanca
+# b) Fuerza axial (paralela a la cuerda, positiva hacia el borde de fuga)
+#   Esta es la fuerza que empuja/frena el barco longitudinalmente
+integrando_Axial = integrando_cd * np.cos(alpha_eff_rad) - integrando_cl * np.sin(alpha_eff_rad)
 
-# Integracion Matematica sobre THETA (0 a pi)
-momento_Cm_puro = simpson(integrando_Cm, x=theta)
-momento_Palanca = simpson(integrando_Fuerza_Palanca, x=theta)
-momento_total_mastil = simpson(integrando_total, x=theta)
+#VECTORES DE POSICION (brazos de palanca)
+centro_aerodinamico = 0.25 * distribucion_cuerda
+posicion_mastil = np.full_like(centro_aerodinamico, 0.5) 
+brazo_horizontal = posicion_mastil - centro_aerodinamico # distancia X
+brazo_vertical = y + (span/2)                            # distancia Z (altura desde la base)
 
-print("ANÁLISIS DE MOMENTO Mz EN EL MÁSTIL BORDE DE ATAQUE RECTO")
-print(f"1. Momento aerodinámico puro (Cm):  {momento_Cm_puro:.2f} Nm")
-print(f"2. Momento por Normal (Lift+Drag):  {momento_Palanca:.2f} Nm")
-print(f"3. Momento TOTAL neto en el mástil: {momento_total_mastil:.2f} Nm")
-print(f"Cuerda PUNTA (y={y[0]:.2f}m): {distribucion_cuerda[0]:.2f}m | Brazo: {brazo_palanca[0]:.3f}m | AOA Efect.: {alpha_eff_deg[0]:.2f}º")
-print(f"Cuerda BASE  (y={y[-1]:.2f}m): {distribucion_cuerda[-1]:.2f}m | Brazo: {brazo_palanca[-1]:.3f}m | AOA Efect.: {alpha_eff_deg[-1]:.2f}º")
+#INTEGRANDOS DE LOS 3 MOMENTOS (las 3 componentes de r x F)
+Cm_vector = interpolador_cm(alpha_eff_deg, valor_angulo_flap)
+integrando_Cm_puro = 0.5 * rho * (V**2) * (distribucion_cuerda**2) * Cm_vector * (span/2) * np.sin(theta)
+#   Eje 1: Torsion (pitching local de la vela / ajuste de angulo)
+integrando_Torsion = integrando_Cm_puro + (integrando_Normal * brazo_horizontal)
+#   Eje 2: Escora (roll / vuelco lateral)
+integrando_Escora = integrando_Normal * brazo_vertical
+#   Eje 3: Cabeceo (pitch del barco / flexión longitudinal del mastil)
+integrando_Cabeceo = integrando_Axial * brazo_vertical
 
-# ====================================================================
-# CALCULO DEL MOMENTO FLECTOR (escora) EN LA BASE DEL MASTIL
-# ====================================================================
+#INTEGRACION NUMERICA (simpson)
+momento_Torsion = simpson(integrando_Torsion, x=theta)
+momento_Escora = simpson(integrando_Escora, x=theta)
+momento_Cabeceo = simpson(integrando_Cabeceo, x=theta)
 
-# Brazo de palanca vertical (distancia desde cada seccion hasta la base de la vela)
-# La base está en -span/2. Por tanto, la distancia es y - (-span/2)
-distancia_a_base = y + (span / 2)
-
-# Integrandos del momento flector (Fuerza local * altura a la base)
-# (Usamos integrando_cl e integrando_cd que ya incluyen el Jacobiano de theta)
-integrando_flector_Lift = integrando_cl * distancia_a_base
-integrando_flector_Drag = integrando_cd * distancia_a_base
-
-# Integración Matemática sobre THETA
-momento_flector_Lift = simpson(integrando_flector_Lift, x=theta)
-momento_flector_Drag = simpson(integrando_flector_Drag, x=theta)
-
-# Momento Flector Resultante (Magnitud total que sufre la base del tubo)
-# Como actúan a 90 grados el uno del otro (Lift lateral, Drag hacia atras), usamos Pitagoras
-momento_flector_Total = np.sqrt(momento_flector_Lift**2 + momento_flector_Drag**2)
-
-print("ANALISIS DE MOMENTO FLECTOR (escora)")
-print(f"1. Flector Lateral (por Lift):     {momento_flector_Lift:.2f} Nm")
-print(f"2. Flector Longitudinal (por Drag):{momento_flector_Drag:.2f} Nm")
-print(f"3. Flector RESULTANTE en la base:  {momento_flector_Total:.2f} Nm")
+# 5. RESULTADOS EN TERMINAL
+print("ANALISIS ESTRUCTURAL 3D DE MOMENTOS")
+print(f"TORSION (Giro del mastil sobre si mismo / Trimado de AOA):")
+print(f"   momento TORSION en el mastil: {momento_Torsion:.2f} Nm")
+print(f"ESCORA (Vuelco lateral / Flexion transversal):")
+print(f"   Esfuerzo flector/escora en la base: {momento_Escora:.2f} Nm")
+print(f"CABECEO (Empuje longitudinal / Flexion hacia atras):")
+print(f"   Momento en la base/trimado, si sale negativo dobla mastil hacia proa: {momento_Cabeceo:.2f} Nm")
 
 # #graficas 
 # plt.plot(y, cdi)
@@ -478,36 +460,86 @@ print(f"3. Flector RESULTANTE en la base:  {momento_flector_Total:.2f} Nm")
 # plt.grid(True)
 # plt.show()
 
-# ====================================================================
-# GRÁFICA DE DISTRIBUCIÓN DE MOMENTOS A LO LARGO DEL MÁSTIL
+# ==========================================
+# GRAFICA 3D DE CARGAS ESTRUCTURALES EN EL MASTIL
 # ====================================================================
 
-# hay que quitar  el jacobiano de integracion para obtener la distribución real (Nm/m)
+# quitar el Jacobiano para obtener la distribucion real (Nm/m) en el eje fisico (y)
 jacobiano = (span/2) * np.sin(theta)
-dM_dy_Cm = integrando_Cm / jacobiano
-dM_dy_Sust = integrando_Fuerza_Palanca/ jacobiano
-dM_dy_Total = integrando_total / jacobiano
- 
 
+# uso np.divide para evitar dividir por cero en los extremos (donde el jacobiano es 0)
+dM_dy_Torsion = np.divide(integrando_Torsion, jacobiano, out=np.zeros_like(integrando_Torsion), where=jacobiano!=0)
+dM_dy_Escora  = np.divide(integrando_Escora, jacobiano, out=np.zeros_like(integrando_Escora), where=jacobiano!=0)
+dM_dy_Cabeceo = np.divide(integrando_Cabeceo, jacobiano, out=np.zeros_like(integrando_Cabeceo), where=jacobiano!=0)
+
+# configuro la grafica
 plt.figure(figsize=(10, 6))
 
-# usamos 'y' como eje X (irá de -2.5 base a 2.5 punta)
-plt.plot(y, dM_dy_Cm, 'b--', linewidth=2, label='Momento Puro del Perfil (Cm)')
-plt.plot(y, dM_dy_Sust, 'r--', linewidth=2, label='Momento por Sustentacion (Brazo)')
-plt.plot(y, dM_dy_Total, 'k-', linewidth=3, label='Momento TOTAL Neto')
+# dibuja las tres curvas (y va de -2.5 a 2.5)
+plt.plot(y, dM_dy_Escora, color='blue', linestyle='-', linewidth=2.5, 
+         label='Escora (Contribución al vuelco lateral)')
+plt.plot(y, dM_dy_Cabeceo, color='green', linestyle='--', linewidth=2.5, 
+         label='Cabeceo (Contribución a la flexión trasera)')
+plt.plot(y, dM_dy_Torsion, color='red', linestyle='-.', linewidth=2.5, 
+         label='Torsión (Contribución al giro en su eje)')
 
-# detalles estéticos para mejor visualizacion
-plt.title(f'Distribución del Momento de Torsión en el Mastil (AOA = {np.rad2deg(valor_angulo_ataque):.0f}º)', fontsize=14, fontweight='bold')
-plt.xlabel('Posicion en la envergadura (y) [m]  (-2.5=Base, 2.5=Punta)', fontsize=12)
-plt.ylabel('momento Local (dM/dy) [Nm/m]', fontsize=12)
+# detalles esteticos 
+plt.title('Distribución de Cargas Aerodinámicas en el Mástil', fontsize=15, fontweight='bold')
+plt.xlabel('Posición en la vela (y) [m]   (-2.5 = Base, 2.5 = Punta)', fontsize=12)
+plt.ylabel('Carga Local aportada a la base (dM/dy) [Nm/m]', fontsize=12)
 
-# linea del cero para ver fácilmente cuándo el momento cambia de dirección
-plt.axhline(0, color='gray', linestyle='-', linewidth=1) 
-plt.axvline(0, color='gray', linestyle=':', linewidth=1) # Centro de la vela
+# lineas de referencia (ejes neutros)
+plt.axhline(0, color='black', linewidth=1.5) # eje horizontal en 0
+plt.axvline(0, color='gray', linestyle=':', alpha=0.7) # centro del msstil
 
+# caja resumen con los resultados integrados
+texto_resumen = (
+    f"MOMENTOS TOTALES EN LA BASE:\n"
+    f"  • Escora: {momento_Escora:.1f} Nm\n"
+    f"  • Cabeceo: {momento_Cabeceo:.1f} Nm\n"
+    f"  • Torsión: {momento_Torsion:.1f} Nm"
+)
+plt.annotate(texto_resumen, xy=(0.03, 0.75), xycoords='axes fraction',
+             bbox=dict(boxstyle="round,pad=0.5", facecolor="white", edgecolor="black", linewidth=1.5, alpha=0.9),
+             fontsize=11, fontweight='bold', color='black')
+
+# rematar estetica y mostrar
+plt.grid(True, which='both', linestyle='--', alpha=0.6)
+plt.legend(loc='upper right', fontsize=10, shadow=True)
+plt.tight_layout() # ajusta msrgenes automaticamente
+plt.show()
+
+
+# ===========================================================
+# [BLOQUE EXTRA] busqueda del punto donde la torsion del mastil es cero
+# ================================
+
+# funcion para calcular el torqie en cualquier posicion
+def calcular_torque_residual(pos):
+    brazo_prueba = np.full_like(centro_aerodinamico, pos) - centro_aerodinamico
+    return simpson(integrando_Cm_puro + (integrando_Normal * brazo_prueba), x=theta)
+
+# encutro el punto exacto con fsolve (dato de partida es 0.5m)
+posicion_optima = fsolve(calcular_torque_residual, x0=0.5)[0]
+print(f"\n-> MÁSTIL ÓPTIMO (Torque 0.00 Nm): a {posicion_optima:.3f} metros de la nariz.")
+
+# creo datos para la grafica 
+posiciones_grafica = np.linspace(0.0,max(cuerda_en_base,cuerda_en_punta), 30)
+torques_grafica = [calcular_torque_residual(p) for p in posiciones_grafica]
+
+# dibuja la grafica 
+plt.figure(figsize=(7, 4))
+plt.plot(posiciones_grafica, torques_grafica, 'b-', linewidth=2, label='Esfuerzo del Motor')
+
+# marca la linea del cero y el punto optimo
+plt.axhline(0, color='black', linestyle='--', linewidth=1.5) # Eje neutro (0 Nm)
+plt.plot(posicion_optima, 0, 'ro', markersize=8, label=f'Óptimo: {posicion_optima:.3f} m')
+
+# estetica de la grafica ejes y tal
+plt.title('Torque vs Posición del Mástil', fontsize=12, fontweight='bold')
+plt.xlabel('Distancia del mástil desde la nariz [m]')
+plt.ylabel('Torque de Torsión [Nm]')
 plt.grid(True, linestyle=':', alpha=0.7)
-plt.legend(fontsize=11, loc='best')
-plt.tight_layout() # Ajusta los márgenes automáticamente
-
-
+plt.legend()
+plt.tight_layout()
 plt.show()
