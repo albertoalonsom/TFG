@@ -39,7 +39,6 @@ class BaseDatosAerodinamica:
             return []
 
     def _cargar_y_procesar_datos(self):
-        print("iniciando carga de polares aerodinamicas")
         matriz_datos_global = []
         for nombre, valores in self.archivos.items():
             ruta_full = os.path.join(self.carpeta, nombre)
@@ -61,7 +60,6 @@ class BaseDatosAerodinamica:
         self.interpolador_cl = LinearNDInterpolator(puntos_entrada, datos_array[:, 3], rescale=True)
         self.interpolador_cd = LinearNDInterpolator(puntos_entrada, datos_array[:, 4], rescale=True)
         self.interpolador_cm = LinearNDInterpolator(puntos_entrada, datos_array[:, 5], rescale=True)
-        print(f"base de datos lista (AOA Min {self.limite_min}º | Max {self.limite_max}º)\n")
 
     def consultar_coeficientes(self, alpha_deg, flap_deg):
         alpha_seguro = np.clip(alpha_deg, self.limite_min, self.limite_max)
@@ -169,9 +167,6 @@ class GeometriaVela:
         
         # guarda los resultados
         self.AR = (self.span**2) / self.S 
-        print(f"geometria calculada: superficie = {self.S:.4f} m2 | AR = {self.AR:.4f}")
-
-
 
 # ==============================================================================
 # CLASE 4: SIMULADOR (motor mates LLT)
@@ -213,16 +208,13 @@ class SimuladorLLT:
             return (alpha_geom_rad - alpha_w_nuevo) - alpha_eff_guess
 
         # resuelve el LLT
-        print(f"resolviendo LLT para AOA={aoa_global_deg}º...")
         alpha_inicial_rad = np.copy(alpha_geom_rad)
         self.alpha_eff_rad_final, info_dict, ier, mesg = fsolve(error_aerodinamico, alpha_inicial_rad, full_output=True)
         
-        if ier == 1: print("convergencia alcanzada con exito")
-        else: print("aviso del solver:", mesg)
-
+        if ier != 1: print("aviso del solver:", mesg)
+    
         vector_errores = info_dict["fvec"]
         error_maximo = np.max(np.abs(vector_errores))
-        print(f"error maximo de fsolve: {error_maximo:.8e} radianes")
         
         # variables finales guardadas en "self" para usarlas en otros metodos deespues del NL-LLT
         self.alpha_eff_deg = np.rad2deg(self.alpha_eff_rad_final)
@@ -239,7 +231,6 @@ class SimuladorLLT:
         self.alpha_w = alpha_geom_rad - self.alpha_eff_rad_final
         
         # imprimimos el chequeo de seguridad
-        print(f"rango de angulo efectivo final: min {np.min(self.alpha_eff_deg):.2f}º, max {np.max(self.alpha_eff_deg):.2f}º")
     
     # METODO DE CALCULO AERODINAMICO 
     def calcular_fuerzas_aerodinamicas(self):
@@ -298,14 +289,8 @@ class SimuladorLLT:
                                   out=np.zeros_like(self.cl_2d), where=self.cl_2d!=0)
 
 
-        print(f"resistencia inducida (LLT):   {self.D_inducido:.3f} N")
-        print(f"resistencia viscosa (XFOIL):  {self.D_viscoso:.3f} N")
         print(f"RESISTENCIA TOTAL DE VELA:    {self.Drag_Total:.3f} N")
-        print("COMPARATIVA DE MÉTODOS DE INTEGRACIÓN LIFT:")
-        print(f"LIFT Trapecios:  {self.L_trapz:.3f} N")
-        print(f"LIFT Simpson:    {self.L_simp:.3f} N")
-        print(f"LIFT Spline:     {self.L_spline:.3f} N")
-        print(f"LIFT Analitico:  {self.L_LLT:.3f} N")
+        print(f"LIFT:  {self.L_LLT:.3f} N")
 
     def calcular_esfuerzos_3d(self, posicion_mastil_base):
         # Brazos de palanca
@@ -332,7 +317,6 @@ class SimuladorLLT:
         momento_Escora = simpson(self.integrando_Escora, x=self.vela.angle)
         momento_Cabeceo = simpson(self.integrando_Cabeceo, x=self.vela.angle)
 
-        print("\n=== ANÁLISIS ESTRUCTURAL 3D ===")
         print(f"Torsión (Mastil): {momento_Torsion:.2f} Nm")
         print(f"Escora (Base):    {momento_Escora:.2f} Nm")
         print(f"Cabeceo (Proa):   {momento_Cabeceo:.2f} Nm")
@@ -470,10 +454,10 @@ if __name__ == "__main__":
     mi_simulador.calcular_fuerzas_aerodinamicas()
     mi_simulador.calcular_esfuerzos_3d(posicion_mastil_base=0.5)
     
-    # 5. generacion de graficas y optimizacion
-    mi_visualizador = VisualizadorResultados(mi_simulador)
-    mi_visualizador.graficar_cargas_estructurales()
-    mi_visualizador.encontrar_mastil_optimo()
+    # # 5. generacion de graficas y optimizacion
+    # mi_visualizador = VisualizadorResultados(mi_simulador)
+    # mi_visualizador.graficar_cargas_estructurales()
+    # mi_visualizador.encontrar_mastil_optimo()
 
 # if __name__ == "__main__":
 #     # 1. Cargamos datos, fluido y vela (SOLO UNA VEZ)
