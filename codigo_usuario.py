@@ -169,7 +169,7 @@ class GeometriaVela:
         
         # guarda los resultados
         self.AR = (self.span**2) / self.S 
-        print(f"geometria calculada: superficie = {self.S:.4f} m2 | AR = {self.AR:.4f}")
+        # print(f"geometria calculada: superficie = {self.S:.4f} m2 | AR = {self.AR:.4f}") #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 
@@ -213,16 +213,16 @@ class SimuladorLLT:
             return (alpha_geom_rad - alpha_w_nuevo) - alpha_eff_guess
 
         # resuelve el LLT
-        print(f"resolviendo LLT para AOA={aoa_global_deg}º...")
+        # print(f"resolviendo LLT para AOA={aoa_global_deg}º...") #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         alpha_inicial_rad = np.copy(alpha_geom_rad)
         self.alpha_eff_rad_final, info_dict, ier, mesg = fsolve(error_aerodinamico, alpha_inicial_rad, full_output=True)
         
-        if ier == 1: print("convergencia alcanzada con exito")
-        else: print("aviso del solver:", mesg)
+        # if ier == 1: print("convergencia alcanzada con exito") #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        # else: print("aviso del solver:", mesg) #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         vector_errores = info_dict["fvec"]
         error_maximo = np.max(np.abs(vector_errores))
-        print(f"error maximo de fsolve: {error_maximo:.8e} radianes")
+        # print(f"error maximo de fsolve: {error_maximo:.8e} radianes") #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         
         # variables finales guardadas en "self" para usarlas en otros metodos deespues del NL-LLT
         self.alpha_eff_deg = np.rad2deg(self.alpha_eff_rad_final)
@@ -239,7 +239,7 @@ class SimuladorLLT:
         self.alpha_w = alpha_geom_rad - self.alpha_eff_rad_final
         
         # imprimimos el chequeo de seguridad
-        print(f"rango de angulo efectivo final: min {np.min(self.alpha_eff_deg):.2f}º, max {np.max(self.alpha_eff_deg):.2f}º")
+        print(f"rango de angulo efectivo final: min {np.min(self.alpha_eff_deg):.2f}º, max {np.max(self.alpha_eff_deg):.2f}º") #+++++++++++++++++++++++++++++++++++
     
     # METODO DE CALCULO AERODINAMICO 
     def calcular_fuerzas_aerodinamicas(self):
@@ -298,13 +298,13 @@ class SimuladorLLT:
                                   out=np.zeros_like(self.cl_2d), where=self.cl_2d!=0)
 
 
-        print(f"resistencia inducida (LLT):   {self.D_inducido:.3f} N")
-        print(f"resistencia viscosa (XFOIL):  {self.D_viscoso:.3f} N")
+        # print(f"resistencia inducida (LLT):   {self.D_inducido:.3f} N")
+        # print(f"resistencia viscosa (XFOIL):  {self.D_viscoso:.3f} N")
         print(f"RESISTENCIA TOTAL DE VELA:    {self.Drag_Total:.3f} N")
-        print("COMPARATIVA DE MÉTODOS DE INTEGRACIÓN LIFT:")
-        print(f"LIFT Trapecios:  {self.L_trapz:.3f} N")
-        print(f"LIFT Simpson:    {self.L_simp:.3f} N")
-        print(f"LIFT Spline:     {self.L_spline:.3f} N")
+        # print("COMPARATIVA DE MÉTODOS DE INTEGRACIÓN LIFT:")
+        # print(f"LIFT Trapecios:  {self.L_trapz:.3f} N")
+        # print(f"LIFT Simpson:    {self.L_simp:.3f} N")
+        # print(f"LIFT Spline:     {self.L_spline:.3f} N")
         print(f"LIFT Analitico:  {self.L_LLT:.3f} N")
 
     def calcular_esfuerzos_3d(self, posicion_mastil_base):
@@ -332,7 +332,7 @@ class SimuladorLLT:
         momento_Escora = simpson(self.integrando_Escora, x=self.vela.angle)
         momento_Cabeceo = simpson(self.integrando_Cabeceo, x=self.vela.angle)
 
-        print("\n=== ANÁLISIS ESTRUCTURAL 3D ===")
+        # print("\n=== ANÁLISIS ESTRUCTURAL 3D ===")
         print(f"Torsión (Mastil): {momento_Torsion:.2f} Nm")
         print(f"Escora (Base):    {momento_Escora:.2f} Nm")
         print(f"Cabeceo (Proa):   {momento_Cabeceo:.2f} Nm")
@@ -348,10 +348,91 @@ class VisualizadorResultados:
         self.sim = simulador
         self.vela = simulador.vela
 
+    def graficar_forma_planta(self, posicion_mastil_base=0.0):
+        """dibuja la geometria fisica de la vela (plano de diseño 2D X-Y)."""
+                
+        # calcula la linea del borde de Salida (TE = Nariz + Cuerda)
+        x_TE = self.vela.x_LE + self.vela.distribucion_cuerda
+        
+        plt.figure(figsize=(8, 10)) # formato vertical
+        
+        # dibuja las lineas de los bordes
+        plt.plot(self.vela.x_LE, self.vela.y, 'k-', linewidth=2, label='Borde de Ataque (Nariz)')
+        plt.plot(x_TE, self.vela.y, 'r--', linewidth=2, label='Borde de Salida (Cola)')
+        
+        # colorea el area de la vela
+        plt.fill_betweenx(self.vela.y, self.vela.x_LE, x_TE, color='skyblue', alpha=0.4, label='Área Vela')
+        
+        # eje del mástil físico en su posición real
+        plt.axvline(posicion_mastil_base, color='gray', linestyle=':', linewidth=2, label=f'Eje Mástil (X={posicion_mastil_base}m)')
+
+        # detalles esteticos y escalas
+        plt.title(f'Geometría de Diseño (Forma en Planta)\nSuperficie: {self.vela.S:.2f} m2', fontsize=14, fontweight='bold')
+        plt.xlabel('Eje Longitudinal (X) [m] (Proa -> Popa)', fontsize=12)
+        plt.ylabel('Posición en la vela (y) [m] (Base -> Punta)', fontsize=12)
+        
+        plt.grid(True, which='both', linestyle='--', alpha=0.5)
+        
+        # saca fuera del area de dibujo la leyenda
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.08), ncol=2, shadow=True)
+        
+        # forzamos escala 1:1 para que no se deforme la geometria
+        plt.axis('equal') 
+        plt.tight_layout()
+        plt.show()
+
+    def graficar_distribucion_fuerzas_seccionales(self):
+        """Muestra el Lift y Drag local rodaja a rodaja (N/m) contra el Span."""
+        
+        print("-> Generando gráfica de distribución de fuerzas locales...")
+        
+        # reconstruimos las densidades fisicas de fuerza (N/m)
+        q = self.sim.fluido.presion_dinamica
+        c = self.vela.distribucion_cuerda
+        
+        dl_dy = q * c * self.sim.cl_2d
+        dd_dy_viscoso = q * c * self.sim.cd_2d
+        dd_dy_inducido = q * c * self.sim.cdi_local 
+        dd_dy_total = dd_dy_viscoso + dd_dy_inducido
+
+        # configuracion de subplots
+        fig, ax1 = plt.subplots(figsize=(10, 6))
+
+        # eje 1: LIFT (dL/dy) ---
+        color_lift = 'tab:blue'
+        ax1.set_xlabel('Posición de envergadura (y) [m] (Base -> Punta)', fontsize=12)
+        ax1.set_ylabel('Lift local (dL/dy) [N/m]', color=color_lift, fontsize=12)
+        ax1.plot(self.vela.y, dl_dy, color=color_lift, linewidth=2.5, label='Lift (Sustentación)')
+        ax1.tick_params(axis='y', labelcolor=color_lift)
+        ax1.fill_between(self.vela.y, dl_dy, color=color_lift, alpha=0.2)
+
+        # eje 2: DRAG (dD/dy) ---
+        ax2 = ax1.twinx()  
+        color_drag = 'tab:red'
+        ax2.set_ylabel('Drag local (dD/dy) [N/m]', color=color_drag, fontsize=12)
+        
+        ax2.plot(self.vela.y, dd_dy_total, color=color_drag, linewidth=2.5, label='Drag Total')
+        ax2.plot(self.vela.y, dd_dy_viscoso, color='gray', linestyle=':', linewidth=1.5, label='Drag Viscoso')
+        ax2.plot(self.vela.y, dd_dy_inducido, color='gray', linestyle='--', linewidth=1.5, label='Drag Inducido')
+        
+        ax2.tick_params(axis='y', labelcolor=color_drag)
+
+        # titulos y Leyendas
+        plt.title('Distribución de Cargas Aerodinámicas a lo largo del Span', fontsize=14, fontweight='bold')
+        ax1.grid(True, linestyle=':', alpha=0.7)
+        
+        # sacamos la leyenda conjunta debajo de la grafica
+        lines, labels = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax2.legend(lines + lines2, labels + labels2, loc='upper center', bbox_to_anchor=(0.5, -0.15), shadow=True, ncol=2)
+        
+        fig.tight_layout()
+        plt.show()
+
     def graficar_cargas_estructurales(self):
         """dibuja la distribucion local de esfuerzos a lo largo del mastil"""
         
-        # quito el Jacobiano para obtener la distribución real (Nm/m) en el eje fisico (y)
+        # quito el Jacobiano para obtener la distribucion real (Nm/m) en el eje fisico (y)
         jacobiano = (self.vela.span/2) * np.sin(self.vela.angle)
 
         # uso np.divide para evitar dividir por cero en la base y la punta
@@ -443,7 +524,12 @@ if __name__ == "__main__":
     CARPETA = r"C:\Users\aamal\OneDrive - Universidad Politécnica de Madrid\Escritorio\pruebas_tfg\xflr5_2D_prubas"
     ARCHIVOS = {
         "NACA 0020_Re0.462_flap_0.txt": [404000, 0],
-        "NACA 0020_Re0.520_flap_5.txt": [520000, 5],
+        "NACA 0020_Re0.520_flap_5.txt": [520000, 5],    
+        "NACA 0020_Re0.520_flap_10.txt": [520000, 10],
+        "NACA 0020_Re0.520_flap_15.txt": [520000, 15],
+        "NACA 0020_Re0.520_flap_20.txt": [520000, 20],
+        "NACA 0020_Re0.520_flap_25.txt": [520000, 25],
+        "NACA 0020_Re0.520_flap_30.txt": [520000, 30],
     }
     mi_bd = BaseDatosAerodinamica(CARPETA, ARCHIVOS)
     
@@ -455,7 +541,7 @@ if __name__ == "__main__":
         span=5, 
         cuerda_base=2, 
         cuerda_punta=1.4, 
-        tipo_vela=1,           # 1=Elíptica, 2=Trapezoidal
+        tipo_vela=1,           # 1=Eliptica, 2=Trapezoidal
         opcion_bordes=1,       # 1=Ataque Recto, 2=Salida Recta
         semi_eje_menor=2, 
         semi_eje_mayor=7,
@@ -464,36 +550,31 @@ if __name__ == "__main__":
     
     # 4. Inicializar motor de simulacion
     mi_simulador = SimuladorLLT(vela=mi_vela, fluido=mi_fluido, base_datos=mi_bd, termino=1)
+
+    angulos_a_probar = [3, 5, 8, 10]
+    angulos_aprobar_flap= [0, 5, 10, 15, 20, 25, 30]
+    print("\nINICIANDO BARRIDO DE ÁNGULOS")
+    for aoa in angulos_a_probar:
+        for aof in angulos_aprobar_flap:
+            print(f"\nProbando AOA = {aoa}º")
+            print(f"\nProbando AOF = {aof}º")
+            mi_simulador.resolver(aoa_global_deg=aoa, flap_deg=aof)
+            mi_simulador.calcular_fuerzas_aerodinamicas()
+            mi_simulador.calcular_esfuerzos_3d(posicion_mastil_base=0.5)
+                    
+            # lift = mi_simulador.L_LLT
+            # drag = mi_simulador.Drag_Total
+            # print(f"Resultado rápido -> Lift: {lift:.1f} N | Drag: {drag:.1f} N")
     
     # --- EJECUCION DE CALCULOS ---
-    mi_simulador.resolver(aoa_global_deg=15, flap_deg=0)
-    mi_simulador.calcular_fuerzas_aerodinamicas()
-    mi_simulador.calcular_esfuerzos_3d(posicion_mastil_base=0.5)
+    # mi_simulador.resolver(aoa_global_deg=5, flap_deg=0)
+    # mi_simulador.calcular_fuerzas_aerodinamicas()
+    # mi_simulador.calcular_esfuerzos_3d(posicion_mastil_base=0.5)
     
     # 5. generacion de graficas y optimizacion
-    mi_visualizador = VisualizadorResultados(mi_simulador)
-    mi_visualizador.graficar_cargas_estructurales()
-    mi_visualizador.encontrar_mastil_optimo()
+    # mi_visualizador = VisualizadorResultados(mi_simulador)
+    # mi_visualizador.graficar_forma_planta(posicion_mastil_base=0.5)
+    # mi_visualizador.graficar_distribucion_fuerzas_seccionales()
+    # mi_visualizador.graficar_cargas_estructurales()
+    # mi_visualizador.encontrar_mastil_optimo()
 
-# if __name__ == "__main__":
-#     # 1. Cargamos datos, fluido y vela (SOLO UNA VEZ)
-#         mi_bd = BaseDatosAerodinamica(CARPETA, ARCHIVOS)
-#         mi_fluido = EntornoFluido(rho=1.225, V=5.14444)
-#         mi_vela = GeometriaVela(span=5, cuerda_base=2, cuerda_punta=1.4, tipo_vela=2, opcion_bordes=2, semi_eje_menor=2, semi_eje_mayor=7)
-        
-#         # 2. Creamos el simulador
-#         mi_simulador = SimuladorLLT(mi_vela, mi_fluido, mi_bd)
-        
-#         # 3. BUCLE DE PRUEBAS AUTOMÁTICO
-#         angulos_a_probar = [0, 4, 8, 12, 15]
-        
-#         print("\n=== INICIANDO BARRIDO DE ÁNGULOS ===")
-#         for aoa in angulos_a_probar:
-#             print(f"\n--- Probando AOA = {aoa}º ---")
-#             mi_simulador.resolver(aoa_global_deg=aoa, flap_deg=0)
-#             mi_simulador.calcular_fuerzas_aerodinamicas()
-            
-#             # Puedes extraer variables directamente del objeto para guardarlas o compararlas
-#             lift = mi_simulador.L_LLT
-#             drag = mi_simulador.Drag_Total
-#             print(f"Resultado rápido -> Lift: {lift:.1f} N | Drag: {drag:.1f} N")
