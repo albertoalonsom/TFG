@@ -34,7 +34,7 @@ CONFIGURACION_ARCHIVOS = {
 ###########################################################
 rho = 1.225  # densidad del medio [kg/m^3]
 V = 5.14444      # velocidad [m/s]
-valor_angulo_ataque = 2 # VALORES EN GRADOS [º]
+valor_angulo_ataque = 15 # VALORES EN GRADOS [º]
 valor_angulo_flap = 0   # VALRES EN GRADOS [º]
 ##########################################################
 # GEOMETRIA DE LA VELA
@@ -42,12 +42,12 @@ valor_angulo_flap = 0   # VALRES EN GRADOS [º]
 cuerda_en_base = 2          # cuerda en la base de la vela [m]
 cuerda_en_punta = 1.4       # cuerda en la punta de la vela [m]
 span = 5                    # span total de la vela [m]
-distancia_mastil_base = 0.404 # Posición del mastil fisico respecto al borde de ataque en la BASE de la vela (m)
+distancia_mastil_base = 0.5 # Posición del mastil fisico respecto al borde de ataque en la BASE de la vela (m)
 
 # OPCION DE GEOMETRIA DE LA VELA 
 # 1 = vela con forma de semielipse que llega hasta el span aunque la elipse sea mas grande
 # 2 = vela con forma de trapecio rectangulo
-tipo_de_vela = 2 #poner 1 para vela con distribucion de un cuartode elipse y poner 2 para trapezoidal
+tipo_de_vela = 1 #poner 1 para vela con distribucion de un cuartode elipse y poner 2 para trapezoidal
 # en caso de usar la opcion 1 definir los semiejes de la elipse de diseño teorico
 semi_eje_menor = cuerda_en_base # el semi eje menor es la cuerda en la base 
 semi_eje_mayor = 7
@@ -55,13 +55,13 @@ semi_eje_mayor = 7
 # OPCIÓN DE LOS BORDES DE LA VELA
 # 1 = Borde de ataque recto (BORDE ATAQUE RECTO), BORDE DE SALIDA EL DEFINIDO EN GEOMETRIA DE LA VELA
 # 2 = Borde de salida recto (BORDE DE SALIDA RECTO), BORDE DE ATAQUE EL DEFINIDO EN GEOMETRIA DE LA VELA
-opcion_geometria_vela = 2 
+opcion_geometria_vela = 1 
 
 ################################################################################
 # TERMINOS PARA EL LLT (si no se sabe o entiende que es, dejar como esta)
 #############################################################################
-# 1 = en caso de diseño no simetrico, los terminos pares de la serie de fourier no son nulos y hay que tenerlos en cuenta
-# 2 = en caso de diseño SIMETRICO, los terminos pares de la serie de fourier son nulos
+# termino = 1 en caso de diseño no simetrico, los terminos pares de la serie de fourier no son nulos y hay que tenerlos en cuenta
+# termino = 2 en caso de diseño SIMETRICO, los terminos pares de la serie de fourier son nulos
 termino = 1
 # cantidad de estaciones para resolver el liftinting line theory
 # mejor dejar en numero IMPAR, no poner menos de 5 ni mas de 40 y en caso de fallo bajar el numero 
