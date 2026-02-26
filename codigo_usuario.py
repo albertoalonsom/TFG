@@ -40,7 +40,7 @@ valor_angulo_flap = 0   # VALRES EN GRADOS [º]
 # GEOMETRIA DE LA VELA
 #############################################################
 cuerda_en_base = 2          # cuerda en la base de la vela [m]
-cuerda_en_punta = 1.4       # cuerda en la punta de la vela [m]
+cuerda_en_punta = 1.9       # cuerda en la punta de la vela [m]
 span = 5                    # span total de la vela [m]
 distancia_mastil_base = 0.404 # Posición del mastil fisico respecto al borde de ataque en la BASE de la vela (m)
 
